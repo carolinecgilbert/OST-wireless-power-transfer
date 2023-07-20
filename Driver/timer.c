@@ -275,10 +275,16 @@ cpuTimer2ISR(void)
     if (cpuTimer2IntCount2 == 1000){   // slow flashing (every second) if idle modus
         cpuTimer2IntCount2 = 0;
 
+        //
+        // Broadcast data if thyoneI is transmitter - defined in timer.h
+        //
+#if THYONEI_TRANSMITTER
         sendBuffer[BYTE_1] = byte_1;
         sendBuffer[BYTE_2] = byte_2;
         sendBuffer[BYTE_3] = byte_3;
         ThyoneI_TransmitBroadcast(sendBuffer, SENDBUFFER_LENGTH);
+#endif
+
         LED_toggle(LED_ONE);
     }
 

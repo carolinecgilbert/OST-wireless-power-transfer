@@ -24,9 +24,6 @@
 #define Wireless_Communication 1
 #define Optical_Fiber_Communication 2
 
-#define THYONE_DEFAULT_RF_CHANNEL 21
-#define THYONE_DEFAULT_RF_PROFILE 0
-
 //
 // init global Variable
 //

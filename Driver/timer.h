@@ -31,6 +31,9 @@
 #define BYTE_7      6
 
 
+// ThyoneI Transmitter/Receiver
+#define THYONEI_TRANSMITTER 1
+
 
 
     void InitCPUTimers(void);

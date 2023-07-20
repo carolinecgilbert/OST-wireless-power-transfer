@@ -38,12 +38,15 @@
  *          Global variables          *
  **************************************/
 #define CMDCONFIRMATIONARRAY_LENGTH 3
+#define THYONE_DEFAULT_RF_CHANNEL 21
+#define THYONE_DEFAULT_RF_PROFILE 0
 CMD_Confirmation_t cmdConfirmation_array[CMDCONFIRMATIONARRAY_LENGTH];
 uint16_t currentCmdConfirmation;
 PacketThyoneI bufferThyone;
 ThyoneISettings settings;
 int status;
 uint16_t readBuffer;
+uint16_t serialNrThy[4] = {0};
 
 
 
@@ -99,7 +102,67 @@ int ThyoneI_Init()
     packetReceived = 0;
     RxByteCounter = 0;
 
+
+    //
+    // ThyoneI Serial Number setup
+    //
+    if (!ThyoneI_GetSerialNumber(serialNrThy)) {
+        ret = 0;
+        return ret;
+    }
+
+    //
+    // ThyoneI TX Power
+    //
+    ThyoneI_TXPower_t txPower;
+    if (ThyoneI_GetTXPower(&txPower)) {
+        if (txPower != ThyoneI_TXPower_8) {
+            // Set the transmit power to 8 dBm
+            if (!ThyoneI_SetTXPower(ThyoneI_TXPower_8)) {
+                ret = 0;
+                return ret;
+            }
+        }
+    }
+    else {
+        ret = 0;
+        return ret;
+    }
+
+    //
+    // ThyoneI RF Channel
+    //
+    uint16_t rfChannel;
+        if (ThyoneI_GetRFChannel(&rfChannel)) {
+            if (rfChannel != THYONE_DEFAULT_RF_CHANNEL) {
+                // Set the RF channel channel 21
+                if (!ThyoneI_SetRFChannel(THYONE_DEFAULT_RF_CHANNEL)) {
+                    ret = 0;
+                    return ret;
+                }
+            }
+        }
+        else {
+            ret = 0;
+            return ret;
+        }
+        uint16_t rfProfile;
+        if (ThyoneI_GetRFProfile(&rfProfile)) {
+            if (rfProfile != THYONE_DEFAULT_RF_PROFILE) {
+                // Set the RF profile to long range 125 kbit/s mode
+                if (!ThyoneI_SetRFProfile(THYONE_DEFAULT_RF_PROFILE)) {
+                    ret = 0;
+                    return ret;
+                }
+            }
+        }
+        else {
+            ret = 0;
+            return ret;
+        }
+
     ret = 1;
+
     return ret;
 }
 
@@ -571,6 +634,114 @@ int ThyoneI_Get(ThyoneI_UserSettings_t userSetting,uint16_t *ResponseP, uint16_t
         }
     }
     return ret;
+}
+
+/**
+ * @brief  Thyone set parameter
+ * @param  userSetting Paramenter to set
+ * @param  valueP Pointer to the value
+ * @param  length Length of the value
+ * @retval true if successful false in case of failure
+ */
+int ThyoneI_Set(ThyoneI_UserSettings_t userSetting, uint16_t *ValueP, uint16_t length) {
+    int ret = 0;
+
+    /* fill CMD_ARRAY packet */
+    CMD_Array[CMD_POSITION_STX] = CMD_STX;
+    CMD_Array[CMD_POSITION_CMD] = ThyoneI_CMD_SET_REQ;
+    CMD_Array[CMD_POSITION_LENGTH_LSB] = (uint16_t)(1 + length);
+    CMD_Array[CMD_POSITION_LENGTH_MSB] = (uint16_t)0;
+    CMD_Array[CMD_POSITION_DATA] = userSetting;
+    memcpy(&CMD_Array[CMD_POSITION_DATA + 1], ValueP, length);
+
+    if (FillChecksum(CMD_Array, CMD_ARRAY_SIZE())) {
+        /* now send CMD_ARRAY */
+        ThyoneI_sendBytes(CMD_Array, CMD_ARRAY_SIZE());
+
+        /* wait for cnf */
+        return ThyoneI_waitForReply(ThyoneI_CMD_START_IND,CMD_Status_Success, 1);
+    }
+    return ret;
+}
+
+/**
+ * @brief  Get Serial number
+ * @param  serialNumberP  Pointer to serial number
+ * @retval 1 if successful 0 in case of failure
+ */
+int ThyoneI_GetSerialNumber(uint16_t *serialNumberP) {
+    uint16_t length;
+    return ThyoneI_Get(ThyoneI_USERSETTING_INDEX_SERIAL_NUMBER, serialNumberP, &length);
+}
+
+/**
+ * @brief  Set transmit power
+ * @param  txPower Transmit power
+ * @retval true if successful false in case of failure
+ */
+int ThyoneI_SetTXPower(ThyoneI_TXPower_t txPower) {
+    return ThyoneI_Set(ThyoneI_USERSETTING_INDEX_RF_TX_POWER,(uint16_t *)&txPower, 1);
+}
+
+/**
+ * @brief  Get transmit power
+ * @param  txPowerP Pointer to transmit power
+ * @retval true if successful false in case of failure
+ */
+int ThyoneI_GetTXPower(ThyoneI_TXPower_t *txpowerP) {
+    uint16_t length;
+    return ThyoneI_Get(ThyoneI_USERSETTING_INDEX_RF_TX_POWER,(uint16_t *)txpowerP, &length);
+}
+
+/**
+ * @brief  Set RF channel
+ * @param  channel RF channel
+ * @retval true if successful false in case of failure
+ */
+int ThyoneI_SetRFChannel(uint16_t channel) {
+    /* permissible value for channel: 0-38*/
+    if (channel < 38) {
+        return ThyoneI_Set(ThyoneI_USERSETTING_INDEX_RF_CHANNEL,(uint16_t *)&channel, 1);
+    } else {
+        return 0;
+    }
+}
+
+/**
+ * @brief  Get RF channel
+ * @param  self Pointer to the Thyone object.
+ * @param  channelP Pointer to RF channel
+ * @retval true if successful false in case of failure
+ */
+int ThyoneI_GetRFChannel(uint16_t *channelP) {
+    uint16_t length;
+    return ThyoneI_Get(ThyoneI_USERSETTING_INDEX_RF_CHANNEL,(uint16_t *)channelP, &length);
+}
+
+/**
+ * @brief  Get RF profile
+ * @param  self Pointer to the Thyone object.
+ * @param  channelP Pointer to RF profile
+ * @retval true if successful false in case of failure
+ */
+int ThyoneI_GetRFProfile(uint16_t *profileP) {
+    uint16_t length;
+    return ThyoneI_Get(ThyoneI_USERSETTING_INDEX_RF_PROFILE,(uint16_t *)profileP, &length);
+}
+
+/**
+ * @brief  Set RF profile
+ * @param  self Pointer to the Thyone object.
+ * @param  profile RF profile
+ * @retval true if successful false in case of failure
+ */
+int ThyoneI_SetRFProfile(uint16_t profile) {
+    /* permissible value for channel: 0-38*/
+    if (profile < 3) {
+        return ThyoneI_Set(ThyoneI_USERSETTING_INDEX_RF_PROFILE,(uint16_t *)&profile, 1);
+    } else {
+        return 0;
+    }
 }
 
 

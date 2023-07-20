@@ -46,6 +46,7 @@ int status;
 uint16_t readBuffer;
 
 
+
 /**************************************
  *          Static variables          *
  **************************************/
@@ -57,7 +58,9 @@ char CMD_Array[MAX_CMD_LENGTH];
 uint16_t CMD_RX_Array[MAX_CMD_LENGTH] = {};
 static uint16_t RxByteCounter = 0;
 static int packetReceived = 0;
+static int validPacket = 0;
 static uint16_t BytesToReceive = 0;
+static uint16_t pRxBuffer[MAX_CMD_LENGTH];
 
 /**
  * @brief Initialize the ThyoneI interface for serial interface
@@ -136,8 +139,8 @@ int ThyoneI_TransmitBroadcast(uint16_t *payloadP, uint16_t length) {
 
         if (FillChecksum(CMD_Array, CMD_ARRAY_SIZE())) {
             ThyoneI_sendBytes(CMD_Array, CMD_ARRAY_SIZE());
-            //return ThyoneI_waitForReply(ThyoneI_CMD_TXCOMPLETE_RSP,CMD_Status_Success, 1);
-            ret = 1;
+            return ThyoneI_waitForReply(ThyoneI_CMD_TXCOMPLETE_RSP,CMD_Status_Success, 1);
+            //ret = 1;
         }
     }
 
@@ -220,7 +223,9 @@ void ThyoneI_receiveBytes(uint16_t * const data, int dataLength) {
 
                     if (checksum == CMD_RX_Array[BytesToReceive - 1]) {
                         /* received frame ok, interpret it now */
-                        //HandleRxPacket(CMD_RX_Array);
+                        if(HandleRxPacket(CMD_RX_Array)) {
+                            validPacket = 1;
+                        }
                     }
                     RxByteCounter = 0;
                     packetReceived = 1;
@@ -232,23 +237,84 @@ void ThyoneI_receiveBytes(uint16_t * const data, int dataLength) {
 }
 
 /**
- * @brief  Parse the received packet
+ * @brief  Receive data from the Thyoneserial port
  * @param  self Pointer to the Thyone object.
- * @param  data Pointer to the received packet
- * @retval true if successful false in case of failure
+ * @retval none
  */
-void HandleRxPacket(THYONEI *self, uint8_t *pRxBuffer) {
+void ThyoneI_receiveBytes_wait() {
+    uint16_t checksum = 0;
+
+    while (SCI_getRxFIFOStatus(SCIA_BASE) != SCI_FIFO_RX0) {
+        readBuffer = (uint16_t)HWREGH(SCIA_BASE + SCI_O_RXBUF);
+
+        /* interpret received byte */
+        pRxBuffer[RxByteCounter] = readBuffer;
+        switch (RxByteCounter) {
+            case 0:
+                /* wait for start byte of frame */
+                if (pRxBuffer[RxByteCounter] == CMD_STX) {
+                    BytesToReceive = 0;
+                    RxByteCounter = 1;
+                }
+                break;
+
+            case 1:
+                /* CMD */
+                RxByteCounter++;
+                break;
+
+            case 2:
+                /* length field lsb */
+                RxByteCounter++;
+                BytesToReceive = (uint16_t)(pRxBuffer[RxByteCounter - 1]);
+                break;
+
+            case 3:
+                /* length field msb */
+                RxByteCounter++;
+                BytesToReceive +=
+                    (((uint16_t)pRxBuffer[RxByteCounter - 1] << 8) +
+                     LENGTH_CMD_OVERHEAD); /* len_msb + len_lsb + crc + sfd +
+                                                  cmd */
+                break;
+
+            default:
+                /* data field */
+                RxByteCounter++;
+                if (RxByteCounter == BytesToReceive) {
+                    /* check CRC */
+                    checksum = 0;
+                    int i = 0;
+                    for (i = 0; i < (BytesToReceive - 1); i++) {
+                        checksum ^= pRxBuffer[i];
+                    }
+
+                    if (checksum == pRxBuffer[BytesToReceive - 1]) {
+                        /* received frame ok, interpret it now */
+                        HandleRxPacket(pRxBuffer);
+                    }
+                    RxByteCounter = 0;
+                    packetReceived = true;
+                    return;
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * @brief  Parse the received packet
+ * @param  data Pointer to the received packet
+ * @retval 1 if valid packet, 0 invalid packet
+ */
+int HandleRxPacket(uint16_t *pRxBuffer) {
+    int ret = 1;
+
     CMD_Confirmation_t cmdConfirmation;
     cmdConfirmation.cmd = CNFINVALID;
     cmdConfirmation.status = CMD_Status_Invalid;
 
-#if SERIAL_DEBUG
-    // uint16_t cmd_length = (uint16_t)(pRxBuffer[CMD_POSITION_LENGTH_LSB] +
-    //                                  (pRxBuffer[CMD_POSITION_LENGTH_MSB] <<
-    //                                  8));
-    // THYONEI_printPacket(self,
-    //                     pRxBuffer, cmd_length + LENGTH_CMD_OVERHEAD);
-#endif
+
     switch (pRxBuffer[CMD_POSITION_CMD]) {
         case ThyoneI_CMD_RESET_CNF: {
             cmdConfirmation.cmd = pRxBuffer[CMD_POSITION_CMD];
@@ -268,10 +334,10 @@ void HandleRxPacket(THYONEI *self, uint8_t *pRxBuffer) {
             int length = ((uint16_t)pRxBuffer[CMD_POSITION_LENGTH_LSB] << 0) +
                          ((uint16_t)pRxBuffer[CMD_POSITION_LENGTH_MSB] << 8);
             memcpy(
-                &self->bufferThyone.data[0], &pRxBuffer[CMD_POSITION_DATA + 1],
+                bufferThyone.data[0], &pRxBuffer[CMD_POSITION_DATA + 1],
                 length -
                     1); /* First Data byte is status, following bytes response*/
-            self->bufferThyone.length = length - 1;
+            bufferThyone.length = length - 1;
             break;
         }
 
@@ -363,12 +429,12 @@ void HandleRxPacket(THYONEI *self, uint8_t *pRxBuffer) {
             src = (src << 8) + (uint32_t)pRxBuffer[CMD_POSITION_DATA + 2];
             src = (src << 8) + (uint32_t)pRxBuffer[CMD_POSITION_DATA + 1];
             src = (src << 8) + (uint32_t)pRxBuffer[CMD_POSITION_DATA];
-            self->bufferThyone.sourceAddress = src;
-            self->bufferThyone.length = payload_length - 5;
-            self->bufferThyone.RSSI =
+            bufferThyone.sourceAddress = src;
+            bufferThyone.length = payload_length - 5;
+            bufferThyone.RSSI =
                 (int)(pRxBuffer[CMD_POSITION_DATA + 4] - 255);
             /*Copy payload to the thyone buffer*/
-            memcpy(&self->bufferThyone.data[0],
+            memcpy(&bufferThyone.data[0],
                    pRxBuffer + CMD_POSITION_DATA + 5, payload_length - 5);
             break;
         }
@@ -392,6 +458,7 @@ void HandleRxPacket(THYONEI *self, uint8_t *pRxBuffer) {
         }
         default: {
             /* invalid*/
+            ret = 0;
             break;
         }
     }
@@ -401,9 +468,11 @@ void HandleRxPacket(THYONEI *self, uint8_t *pRxBuffer) {
         if (cmdConfirmation_array[i].cmd == CNFINVALID) {
             cmdConfirmation_array[i].cmd = cmdConfirmation.cmd;
             cmdConfirmation_array[i].status = cmdConfirmation.status;
+            ret = 0;
             break;
         }
     }
+    return ret;
 }
 
 /**
@@ -429,8 +498,7 @@ int ThyoneI_waitForReply(uint16_t expectedCmdConfirmation,CMD_Status_t expectedS
     while (1) {
         //interval = micros() - startTime;
         interval++;
-        uint16_t waitDummy[MESSAGE_LENGTH] = {};
-        ThyoneI_receiveBytes(waitDummy, MESSAGE_LENGTH);
+        ThyoneI_receiveBytes_wait();
         if ((interval) >= (TIMEOUT * 1000.0)) /*ms to microseconds*/
         {
             break;

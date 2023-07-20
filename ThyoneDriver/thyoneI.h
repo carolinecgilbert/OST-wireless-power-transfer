@@ -266,6 +266,8 @@ int ThyoneI_TransmitMulticast(uint16_t *payloadP, uint16_t length);
 int ThyoneI_TransmitUnicast(uint16_t *payloadP,uint16_t length);
 void ThyoneI_sendBytes(const char *data, int dataLength);
 void ThyoneI_receiveBytes(uint16_t * const data, int dataLength);
+void ThyoneI_receiveBytes_wait();
+int HandleRxPacket(uint16_t *pRxBuffer);
 int ThyoneI_Get(ThyoneI_UserSettings_t userSetting,uint16_t *ResponseP, uint16_t *Response_LengthP);
 int ThyoneI_waitForReply(uint16_t expectedCmdConfirmation, CMD_Status_t expectedStatus, int reset_confirmstate);
 int FillChecksum(char *pArray, uint16_t length);

@@ -322,7 +322,8 @@ sciaRxISR(void)
     SCI_enableInterrupt(SCIA_BASE, SCI_INT_TXFF);
 
     /* no connection to the USB-Interface --> no reading possible */
-    ThyoneI_receiveBytes(RX_Message, MESSAGE_LENGTH);
+    //ThyoneI_receiveBytes(RX_Message, MESSAGE_LENGTH);
+    // Wait for ThyoneI response
 
     // After processing the received data, disable the RXRDY interrupt until the TX buffer sends 8 more bytes.
     //SCI_disableInterrupt(SCIA_BASE, SCI_INT_RXRDY_BRKDT);

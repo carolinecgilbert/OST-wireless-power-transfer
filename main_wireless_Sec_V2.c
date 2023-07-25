@@ -24,6 +24,7 @@
 #define Wireless_Communication 1
 #define Optical_Fiber_Communication 2
 
+
 //
 // init global Variable
 //
@@ -39,7 +40,11 @@ float ADC_A2_Voltage = 0.0;   // V_Primary ADC-Value
 float ADC_B15_Voltage = 0.0;  // I_Primary ADC-Value
 float V_Primary = 0.0;
 float I_Primary = 0.0;
+uint16_t V_Secondary = 0;
+uint16_t I_Secondary = 0;
 int resetThyoneI = 1;   // reset thyoneI only once in while loop
+uint16_t payload[2] = {};
+int receivedPayload = 0;
 
 //
 // Main
@@ -137,11 +142,27 @@ void main(void){
             resetThyoneI = 0;
         }
 
+
+#if THYONEI_TRANSMITTER
         //
         // get ADC Values and calculate back the voltage dividers
         //
-        V_Primary = get_V_Primary();
-        I_Primary = get_I_Primary();
+        //V_Primary = sendBuffer[0];
+        //I_Primary = sendBuffer[1];
+
+
+#else
+        //
+        // Receive data from transmitting thyoneI
+        //
+        receivedPayload = 0;
+        if (ThyoneI_receiveData(payload)) {
+            // Decode payload message
+            V_Secondary = payload[0];
+            I_Secondary = payload[1];
+            receivedPayload = 1;
+        }
+#endif
 
 
 

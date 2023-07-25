@@ -202,12 +202,6 @@ void Init_Timer2(uint32_t period){
     CPUTimer_enableInterrupt(CPUTIMER2_BASE);                       // enable Interrupts for timer 2
     Interrupt_enable(INT_TIMER2);                                   // enabel timerinterrupt vor cpu
     CPUTimer_startTimer(CPUTIMER2_BASE);                            // start timer 2
-    TX_Message[BYTE_1] = byte_1;
-    TX_Message[BYTE_2] = byte_2;
-    TX_Message[BYTE_3] = byte_3;
-    TX_Message[BYTE_4] = byte_4;
-    TX_Message[BYTE_5] = byte_5;
-    TX_Message[BYTE_6] = byte_6;
 }
 
 
@@ -260,15 +254,7 @@ cpuTimer2ISR(void)
 
     if (cpuTimer2IntCount == 1){
         cpuTimer2IntCount = 0;
-        //byte_5 = (ADC_Voltage_Value & 0b0000111111110000)>>4;
-        //byte_6 = (ADC_Voltage_Value & 0b0000000000001111)<<4;
-        //byte_6 = byte_6 | ((ADC_Current_Value & 0b0000111100000000)>>8);
-        //byte_7 = (ADC_Current_Value & 0b0000000011111111);
-        //byte_7 = ADC_Current_Value;
-        //TX_Message[BYTE_5] = byte_5;
-        //TX_Message[BYTE_6] = byte_6;
-        //TX_Message[BYTE_7] = byte_7;
-        //SCI_writeCharArray(SCIA_BASE, (uint16_t*)TX_Message, 4);
+
     }
 
 
@@ -279,9 +265,10 @@ cpuTimer2ISR(void)
         // Broadcast data if thyoneI is transmitter - defined in timer.h
         //
 #if THYONEI_TRANSMITTER
+        //byte_1 = (uint16_t) get_V_Primary();
+        //byte_2 = (uint16_t) get_I_Primary();
         sendBuffer[BYTE_1] = byte_1;
         sendBuffer[BYTE_2] = byte_2;
-        sendBuffer[BYTE_3] = byte_3;
         ThyoneI_TransmitBroadcast(sendBuffer, SENDBUFFER_LENGTH);
 #endif
 

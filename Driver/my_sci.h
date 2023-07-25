@@ -27,8 +27,8 @@
 #define DEVICE_GPIO_PIN09_SCIB_TX   9U                  // GPIO 9 number for SCIB TX
 #define DEVICE_GPIO_CFG_SCIB_TX     GPIO_9_SCITXDB      // GPIO 9 used for SCIB
 #define MY_SCIFFTXENA               0x4000              // Bit 14 of STXFF To Enable FIFO
-#define MESSAGE_LENGTH              8                   // Bytes in thyoneI command
-#define SENDBUFFER_LENGTH           3                   // Bytes in  message within command
+#define MESSAGE_LENGTH              7                   // Bytes in thyoneI command
+#define SENDBUFFER_LENGTH           2                   // Bytes in  message within command
 
 //typedef unsigned char uint8_t;
 

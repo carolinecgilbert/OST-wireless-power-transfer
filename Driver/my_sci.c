@@ -89,8 +89,8 @@ void init_SCI_A(void){
     // Enable FIFO
     SCI_enableFIFO(SCIA_BASE);
 
-    // Set the transmit FIFO level to 8 and the receive FIFO level to 8.
-    SCI_setFIFOInterruptLevel(SCIA_BASE, SCI_FIFO_TX8, SCI_FIFO_RX8);
+    // Set the transmit FIFO level to 7 and the receive FIFO level to 8.
+    SCI_setFIFOInterruptLevel(SCIA_BASE, SCI_FIFO_TX7, SCI_FIFO_RX8);
 
 
     // Send starting message.
@@ -169,10 +169,10 @@ void my_init_SCI_A(void){
     SCI_performSoftwareReset(SCIA_BASE);
 
     //
-    // Set the transmit FIFO level to 8 and the receive FIFO level to 8.
+    // Set the transmit FIFO level to 8 and the receive FIFO level to 12.
     // Enable the TXFF and RXFF interrupts.
     //
-    SCI_setFIFOInterruptLevel(SCIA_BASE, SCI_FIFO_TX8, SCI_FIFO_RX8);
+    SCI_setFIFOInterruptLevel(SCIA_BASE, SCI_FIFO_TX8, SCI_FIFO_RX12);
     SCI_enableInterrupt(SCIA_BASE, SCI_INT_TXFF | SCI_INT_RXFF);
 
 #ifdef AUTOBAUD

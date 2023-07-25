@@ -18,6 +18,7 @@
 #include "Pie_ClearFlag.h"
 #include "LED.h"
 #include "my_sci.h"
+#include "my_ADC.h"
 #include "../ThyoneDriver/thyoneI.h"
 
 
@@ -32,7 +33,7 @@
 
 
 // ThyoneI Transmitter/Receiver
-#define THYONEI_TRANSMITTER 1
+#define THYONEI_TRANSMITTER 0
 
 
 
